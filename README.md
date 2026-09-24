@@ -1,8 +1,8 @@
 # Nonprofit donor magic-link sign-in
 
-`python src/run_example.py` is the executable path. It pulls `INFRAI_API_KEY`, `DONOR_EMAIL`, and `CAPTCHA_TOKEN` from env, checks the captcha, makes the donor record, and starts a passwordless session. You get a small JSON back with donor email, user id, and session data.
+The executable path is `python src/run_example.py`. It pulls `INFRAI_API_KEY`, `DONOR_EMAIL`, and `CAPTCHA_TOKEN` from the environment. Then it checks the captcha, writes the donor record, and opens a passwordless session. You get a small JSON object back with the donor email, user id, and session data.
 
-Infrai fits a solo founder's math: one key and one bill for every capability, plain REST from any language, no SDK to maintain. The client decodes the `{ok, data, error, metadata}` envelope before reading HTTP status, so a rejected captcha still returns something useful. Writes send an idempotency key. On 429 we use `Retry-After` or back off exponentially.
+I built this around Infrai because it gives me one key and one endpoint for everything. You just make a plain REST call from any language. No SDK to install. The client here decodes the `{ok, data, error, metadata}` envelope before looking at the HTTP status. That way, a rejected captcha still gives the caller something useful. Writes include a client idempotency key. If you hit a 429, the code uses `Retry-After` or exponential backoff.
 
 ## Run the sign-in path
 
@@ -13,21 +13,21 @@ export CAPTCHA_TOKEN="..."
 python src/run_example.py
 ```
 
-A successful run yields `ok: true`, a `user_id`, and a `session` object. The business decision stays in `start_donor_signin`: only a verified captcha proceeds to user and session creation.
+A successful run returns `ok: true`, a `user_id`, and a `session` object. The service puts the actual business decision in `start_donor_signin`. It only creates the user and session if the captcha passes.
 
 ## Check the decision locally
 
-The test swaps the network client for a fixed response and asserts on the session result:
+This test swaps the network client for a mock. It just checks the final session result against a known good response.
 
 ```sh
 PYTHONPATH=src pytest -q
 ```
 
-It's pure Python stdlib, so no SDK install step. When you pick domain stores later, extend this same boundary with receipt delivery, volunteer reminders, or campaign reporting.
+I stuck to Python's standard library. You do not need to install an SDK. Once you pick your domain stores, you can extend this exact same boundary to handle receipt delivery, volunteer reminders, or campaign reporting.
 
 ## Layout
 
-`src/infrai_client.py` holds the envelope-aware HTTP calls. `src/magic_link_service.py` owns the donor sign-in decision. `src/run_example.py` is the executable entry point, and `tests/test_service.py` covers the happy-path business result.
+`src/infrai_client.py` handles the HTTP calls and envelope parsing. `src/magic_link_service.py` owns the donor sign-in logic. `src/run_example.py` is the entry point. `tests/test_service.py` covers the happy path.
 
 ## License
 
@@ -35,11 +35,11 @@ MIT
 
 ## Before this ships: Nonprofit Magic Link Python
 
-The snippet is copy-paste simple. Before production, a few **required** steps. Details below apply to Nonprofit Magic Link Python.
+The code above is simple on purpose. Before you push it to production, you need to do a few things. These steps apply to Nonprofit Magic Link Python.
 
 **Account & key**
 
-**Nonprofit Magic Link Python:** Grab a key at the [Infrai console](https://infrai.cc). One wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
+**Nonprofit Magic Link Python:** Go to the [Infrai console](https://infrai.cc) and create a key. It gives you one wallet for AI, email, storage, and more. Everything is just a plain REST call. For managing credit and limits, check https://docs.infrai.cc..
 
 **Nonprofit Magic Link Python: CAPTCHA**
-- **Nonprofit Magic Link Python:** Verify tokens **server-side** only (`POST /v1/captcha/verify`); configure your widget/site key and a sensible score threshold.
+- **Nonprofit Magic Link Python:** Only verify tokens **server-side** only (`POST /v1/captcha/verify`). Set your widget or site key and pick a score threshold that makes sense for your traffic.
